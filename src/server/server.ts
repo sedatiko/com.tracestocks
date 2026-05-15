@@ -10,7 +10,7 @@ import {
 import { closeDb } from '../db/database';
 
 const PORT = Number(process.env['PORT'] ?? 3000);
-const PUBLIC_DIR = path.join(process.cwd(), 'public');
+const PUBLIC_DIR = path.join(process.cwd(), 'web');
 
 function num(v: unknown): number | undefined {
   if (typeof v !== 'string') return undefined;

@@ -52,7 +52,7 @@ src/
     server.ts            # Express JSON API + static file server
   types/
     index.ts             # Shared types (OptionContract, ScanResult, …)
-public/                  # Static frontend (HTML / CSS / vanilla JS, Chart.js)
+web/                     # Static frontend (HTML / CSS / vanilla JS, Chart.js)
 index.js                 # ts-node bootstrap -> src/main.ts
 server.js                # ts-node bootstrap -> src/server/server.ts
 ```
@@ -161,7 +161,7 @@ strike.
 | `GET /api/symbols` | Per-symbol summary (scan count, best call/put %, last underlying, last scan time). |
 | `GET /api/distribution` | Premium % histogram (`?bucketSize=` default 0.5). |
 
-The frontend in [public/](public/) consumes these endpoints with `fetch` and
+The frontend in [web/](web/) consumes these endpoints with `fetch` and
 renders the dashboard.
 
 ---
