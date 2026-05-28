@@ -9,6 +9,7 @@ console.error = (...args: unknown[]) => {
 import { connect, disconnect } from './ib/connection';
 import { getAccountBalance, printAccountBalance } from './ib/account';
 import { runScan } from './scanner/scanner';
+import { buyOptionLimit } from './ib/orders';
 import { closeDb } from './db/database';
 import { config } from './config';
 
@@ -53,22 +54,67 @@ async function cmdOptscan(): Promise<void> {
   console.log(`---\n${results.length} contract(s) found.`);
 }
 
-const COMMANDS: Record<string, () => Promise<void>> = {
-  balance: cmdBalance,
-  optscan: cmdOptscan,
+async function cmdBuy(args: string[]): Promise<void> {
+  // Expected args: SYMBOL EXPIRATION STRIKE RIGHT LIMIT_PRICE
+  // Example:       AAPL 20260116 200 C 5.40
+  const [symbol, expiration, strikeStr, right, lmtStr] = args;
+
+  if (!symbol || !expiration || !strikeStr || !right || !lmtStr) {
+    throw new Error('Usage: buy <SYMBOL> <YYYYMMDD> <STRIKE> <C|P> <LIMIT_PRICE>');
+  }
+  if (right !== 'C' && right !== 'P') {
+    throw new Error(`right must be 'C' or 'P', got: ${right}`);
+  }
+  if (!/^\d{8}$/.test(expiration)) {
+    throw new Error(`expiration must be YYYYMMDD, got: ${expiration}`);
+  }
+  const strike = Number(strikeStr);
+  const limitPrice = Number(lmtStr);
+  if (!Number.isFinite(strike) || strike <= 0) throw new Error(`invalid strike: ${strikeStr}`);
+  if (!Number.isFinite(limitPrice) || limitPrice <= 0) throw new Error(`invalid limit price: ${lmtStr}`);
+
+  console.log(`\n--- Placing BUY LMT order ---`);
+  console.log(`  Connected to: ${config.ib.host}:${config.ib.port}`);
+  console.log(`  Contract: ${symbol} ${right} $${strike} exp ${expiration}`);
+  console.log(`  Quantity: 1 contract`);
+  console.log(`  Limit price: $${limitPrice.toFixed(2)} (per share; total premium $${(limitPrice * 100).toFixed(2)})`);
+
+  const result = await buyOptionLimit({
+    symbol,
+    expiration,
+    strike,
+    right: right as 'C' | 'P',
+    limitPrice,
+    quantity: 1,
+  });
+
+  console.log(`\n--- Order result ---`);
+  console.log(`  orderId:      ${result.orderId}`);
+  console.log(`  status:       ${result.status}`);
+  console.log(`  filled:       ${result.filled}`);
+  console.log(`  remaining:    ${result.remaining}`);
+  console.log(`  avgFillPrice: ${result.avgFillPrice}`);
+  console.log(`--------------------\n`);
+}
+
+const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
+  balance: () => cmdBalance(),
+  optscan: () => cmdOptscan(),
+  buy:     (args) => cmdBuy(args),
 };
 
 async function main(): Promise<void> {
   const cmd = process.argv[2];
+  const rest = process.argv.slice(3);
 
   if (!cmd || !(cmd in COMMANDS)) {
-    console.error(`Usage: npm start <command>\n\nCommands:\n  balance   Print portfolio balance\n  optscan   Scan for qualifying options contracts`);
+    console.error(`Usage: npm start <command> [args...]\n\nCommands:\n  balance                                              Print portfolio balance\n  optscan                                              Scan for qualifying options contracts\n  buy <SYMBOL> <YYYYMMDD> <STRIKE> <C|P> <LIMIT>       Place a BUY LMT order for 1 contract`);
     process.exit(1);
   }
 
   await connect();
 
-  await COMMANDS[cmd]!();
+  await COMMANDS[cmd]!(rest);
 
   disconnect();
   closeDb();
