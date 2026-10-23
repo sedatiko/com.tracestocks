@@ -18,11 +18,11 @@ export function connect(): Promise<void> {
   return new Promise((resolve, reject) => {
     const client = getIB();
 
-    const onError = (code: ErrorCode, msg: string, reqId: number) => {
+    const onError = (err: Error, code: ErrorCode, reqId: number) => {
       // reqId -1 means connection-level error
       if (reqId === -1) {
         client.off(EventName.error, onError);
-        reject(new Error(`IB connection error [${code}]: ${msg}`));
+        reject(new Error(`IB connection error [${code}]: ${err.message}`));
       }
     };
 

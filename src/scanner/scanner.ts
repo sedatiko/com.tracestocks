@@ -1,10 +1,15 @@
 import { getUnderlyingPrice, getOptionsChain, getExpirations } from '../ib/optionsChain';
 import { applyPremiumFilter } from './filters';
-import { insertScanResult } from '../db/scanResults';
+import { insertScanResult, cleanEarlierScans } from '../db/scanResults';
 import type { ScannerConfig, ScanResult } from '../types';
 
 export async function runScan(config: ScannerConfig): Promise<ScanResult[]> {
-  const expirations = getExpirations(config.maxDte);
+  const cleaned = cleanEarlierScans();
+  if (cleaned > 0) {
+    console.log(`Cleaned ${cleaned} earlier/expired scan(s) from database.`);
+  }
+
+  const expirations = getExpirations(config.maxDte, config.minDte);
   const allResults: ScanResult[] = [];
 
   console.log(`Scanning ${expirations.length} expiration(s) between ${config.minDte}-${config.maxDte} DTE… and ${config.minPremiumPct}-${config.maxPremiumPct} pct of underlying`);

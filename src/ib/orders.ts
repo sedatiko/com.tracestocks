@@ -11,11 +11,11 @@ function nextValidOrderId(): Promise<number> {
       ib.off(EventName.error, onError);
       resolve(orderId);
     };
-    const onError = (code: number, msg: string, id: number) => {
+    const onError = (err: Error, code: number, id: number) => {
       if (id !== -1) return;
       ib.off(EventName.nextValidId, onId);
       ib.off(EventName.error, onError);
-      reject(new Error(`[${code}] ${msg}`));
+      reject(new Error(`[${code}] ${err.message}`));
     };
     ib.on(EventName.nextValidId, onId);
     ib.on(EventName.error, onError);
@@ -61,7 +61,7 @@ export function buyOptionLimit(params: BuyOptionParams): Promise<OrderResult> {
       lastTradeDateOrContractMonth: params.expiration,
       strike: params.strike,
       right: params.right === 'C' ? OptionType.Call : OptionType.Put,
-      multiplier: '100',
+      multiplier: 100,
     };
 
     const order: Order = {
@@ -127,13 +127,13 @@ export function buyOptionLimit(params: BuyOptionParams): Promise<OrderResult> {
       }
     };
 
-    const onError = (code: number, msg: string, id: number) => {
+    const onError = (err: Error, code: number, id: number) => {
       if (id !== orderId) return;
       if (WARNING_CODES.has(code)) return;
       cleanup();
       if (!resolved) {
         resolved = true;
-        reject(new Error(`[${code}] ${msg}`));
+        reject(new Error(`[${code}] ${err.message}`));
       }
     };
 

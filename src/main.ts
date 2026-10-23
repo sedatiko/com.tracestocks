@@ -11,6 +11,7 @@ import { getAccountBalance, printAccountBalance } from './ib/account';
 import { runScan } from './scanner/scanner';
 import { buyOptionLimit } from './ib/orders';
 import { closeDb } from './db/database';
+import { cleanEarlierScans } from './db/scanResults';
 import { config } from './config';
 
 const c = {
@@ -97,10 +98,16 @@ async function cmdBuy(args: string[]): Promise<void> {
   console.log(`--------------------\n`);
 }
 
+async function cmdClean(): Promise<void> {
+  const count = cleanEarlierScans();
+  console.log(`Cleaned ${count} earlier/expired scan(s) from database.`);
+}
+
 const COMMANDS: Record<string, (args: string[]) => Promise<void>> = {
   balance: () => cmdBalance(),
   optscan: () => cmdOptscan(),
   buy:     (args) => cmdBuy(args),
+  clean:   () => cmdClean(),
 };
 
 async function main(): Promise<void> {
@@ -108,8 +115,14 @@ async function main(): Promise<void> {
   const rest = process.argv.slice(3);
 
   if (!cmd || !(cmd in COMMANDS)) {
-    console.error(`Usage: npm start <command> [args...]\n\nCommands:\n  balance                                              Print portfolio balance\n  optscan                                              Scan for qualifying options contracts\n  buy <SYMBOL> <YYYYMMDD> <STRIKE> <C|P> <LIMIT>       Place a BUY LMT order for 1 contract`);
+    console.error(`Usage: npm start <command> [args...]\n\nCommands:\n  balance                                              Print portfolio balance\n  optscan                                              Scan for qualifying options contracts\n  buy <SYMBOL> <YYYYMMDD> <STRIKE> <C|P> <LIMIT>       Place a BUY LMT order for 1 contract\n  clean                                                Clean earlier and expired scans`);
     process.exit(1);
+  }
+
+  if (cmd === 'clean') {
+    await COMMANDS[cmd]!(rest);
+    closeDb();
+    return;
   }
 
   await connect();

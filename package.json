@@ -8,6 +8,7 @@
     "balance": "node index.js balance",
     "optscan": "node index.js optscan",
     "buy": "node index.js buy",
+    "clean": "node index.js clean",
     "server": "node server.js",
     "typecheck": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1"

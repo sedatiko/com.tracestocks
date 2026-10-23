@@ -43,12 +43,12 @@ export function getUnderlyingPrice(symbol: string): Promise<number> {
       }
     };
 
-    const onError = (code: number, msg: string, id: number) => {
+    const onError = (err: Error, code: number, id: number) => {
       if (id !== reqId) return;
       if (WARNING_CODES.has(code)) return;
       ib.off(EventName.error, onError);
       ib.off(EventName.tickPrice, onPrice);
-      reject(new Error(`[${code}] ${msg}`));
+      reject(new Error(`[${code}] ${err.message}`));
     };
 
     ib.on(EventName.tickPrice, onPrice);
@@ -184,7 +184,7 @@ export function getOptionsChain(
       finish(idx);
     };
 
-    const onError = (code: number, msg: string, id: number) => {
+    const onError = (_err: Error, code: number, id: number) => {
       const idx = id - reqId;
       if (idx < 0 || idx >= strikes.length) return;
       if (WARNING_CODES.has(code)) return;
@@ -206,7 +206,7 @@ export function getOptionsChain(
         lastTradeDateOrContractMonth: expiration,
         strike,
         right: right === 'C' ? OptionType.Call : OptionType.Put,
-        multiplier: '100',
+        multiplier: 100,
       };
       ib.reqMktData(reqId + idx, contract, '', true, false);
     });
@@ -225,7 +225,7 @@ export function nearestExpiration(weeksOut = config.optionsChain.weeksOut): stri
   return `${y}${m}${dd}`;
 }
 
-export function getExpirations(maxDte: number): string[] {
+export function getExpirations(maxDte: number, minDte: number = 0): string[] {
   const expirations: string[] = [];
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -238,10 +238,12 @@ export function getExpirations(maxDte: number): string[] {
   while (true) {
     const dte = Math.round((cursor.getTime() - today.getTime()) / 86_400_000);
     if (dte > maxDte) break;
-    const y = cursor.getFullYear();
-    const m = String(cursor.getMonth() + 1).padStart(2, '0');
-    const d = String(cursor.getDate()).padStart(2, '0');
-    expirations.push(`${y}${m}${d}`);
+    if (dte >= minDte && dte > 0) {
+      const y = cursor.getFullYear();
+      const m = String(cursor.getMonth() + 1).padStart(2, '0');
+      const d = String(cursor.getDate()).padStart(2, '0');
+      expirations.push(`${y}${m}${d}`);
+    }
     cursor.setDate(cursor.getDate() + 7);
   }
 
