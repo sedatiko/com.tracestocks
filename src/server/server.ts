@@ -5,6 +5,7 @@ import {
   getScansTimeline,
   getSymbolSummaries,
   getPremiumPctDistribution,
+  cleanEarlierScans,
   type ResultsQuery,
 } from '../db/scanResults';
 import { closeDb } from '../db/database';
@@ -63,6 +64,11 @@ app.get('/api/symbols', (_req: Request, res: Response) => {
 app.get('/api/distribution', (req: Request, res: Response) => {
   const bucketSize = num(req.query['bucketSize']) ?? 0.5;
   res.json({ distribution: getPremiumPctDistribution(bucketSize), bucketSize });
+});
+
+app.post('/api/clean', (_req: Request, res: Response) => {
+  const cleaned = cleanEarlierScans();
+  res.json({ ok: true, cleaned });
 });
 
 // Static frontend

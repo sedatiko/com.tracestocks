@@ -47,12 +47,12 @@ export function getAccountBalance(): Promise<AccountBalance> {
       });
     };
 
-    const onError = (code: number, msg: string, id: number) => {
+    const onError = (err: Error, code: number, id: number) => {
       if (id !== reqId) return;
       ib.off(EventName.accountSummary, onSummary);
       ib.off(EventName.accountSummaryEnd, onEnd);
       ib.off(EventName.error, onError);
-      reject(new Error(`[${code}] ${msg}`));
+      reject(new Error(`[${code}] ${err.message}`));
     };
 
     ib.on(EventName.accountSummary, onSummary);

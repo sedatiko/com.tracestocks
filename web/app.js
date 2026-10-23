@@ -72,6 +72,7 @@
     }
     root.innerHTML = scans.map((s) => `
       <li data-scanned-at="${s.scannedAt}" class="${state.activeScan === s.scannedAt ? 'active' : ''}">
+        <span class="sym">${s.symbol ? s.symbol.split(',').join(', ') : '-'}</span>
         <time>${fmtTime(s.scannedAt)}</time>
         <span class="muted">${s.total} hits · ${s.symbols} sym</span>
         <span class="pill">max ${fmtNum(s.maxPremiumPct)}%</span>
@@ -81,7 +82,10 @@
     // Populate scan select
     const sel = document.getElementById('f-scan');
     const current = sel.value;
-    sel.innerHTML = '<option value="">All scans</option>' + scans.map((s) => `<option value="${s.scannedAt}">${fmtTime(s.scannedAt)}</option>`).join('');
+    sel.innerHTML = '<option value="">All scans</option>' + scans.map((s) => {
+      const sym = s.symbol ? `${s.symbol.split(',').join(', ')} — ` : '';
+      return `<option value="${s.scannedAt}">${sym}${fmtTime(s.scannedAt)}</option>`;
+    }).join('');
     sel.value = current;
 
     root.querySelectorAll('li[data-scanned-at]').forEach((li) => {

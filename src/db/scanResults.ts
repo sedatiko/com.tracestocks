@@ -58,6 +58,7 @@ export interface ResultsQuery {
   scannedAt?: string;
   scannedAfter?: string;
   limit?: number;
+  includeExpired?: boolean;
 }
 
 export function queryResults(q: ResultsQuery = {}): ScanResult[] {
@@ -65,6 +66,11 @@ export function queryResults(q: ResultsQuery = {}): ScanResult[] {
   const where: string[] = [];
   const params: Record<string, unknown> = {};
 
+  if (!q.includeExpired) {
+    const today = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+    where.push('expiration >= @today');
+    params['today'] = today;
+  }
   if (q.symbol)        { where.push('symbol = @symbol');                      params['symbol']        = q.symbol; }
   if (q.right)         { where.push('right = @right');                        params['right']         = q.right; }
   if (q.minDte != null){ where.push('dte >= @minDte');                        params['minDte']        = q.minDte; }
@@ -86,12 +92,25 @@ export function queryResults(q: ResultsQuery = {}): ScanResult[] {
   `).all(params) as ScanResult[];
 }
 
+export function cleanEarlierScans(beforeDate?: string): number {
+  const db = getDb();
+  const todayStr = beforeDate ?? new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const info = db.prepare(`
+    DELETE FROM scan_results
+    WHERE expiration < @todayStr
+       OR date(scanned_at) < date(@todayIso)
+  `).run({ todayStr, todayIso });
+  return info.changes;
+}
+
 export function getRecentResults(limit = 100): ScanResult[] {
   return queryResults({ limit });
 }
 
 export interface ScanSummary {
   scannedAt: string;
+  symbol: string | null;
   total: number;
   symbols: number;
   avgPremiumPct: number;
@@ -103,11 +122,13 @@ export function getScansTimeline(limit = 50): ScanSummary[] {
   return db.prepare(`
     SELECT
       scanned_at                       AS scannedAt,
+      GROUP_CONCAT(DISTINCT symbol)    AS symbol,
       COUNT(*)                         AS total,
       COUNT(DISTINCT symbol)           AS symbols,
       ROUND(AVG(premium_pct), 2)       AS avgPremiumPct,
       ROUND(MAX(premium_pct), 2)       AS maxPremiumPct
     FROM scan_results
+    WHERE expiration >= strftime('%Y%m%d', 'now', 'localtime')
     GROUP BY scanned_at
     ORDER BY scanned_at DESC
     LIMIT ?
@@ -136,6 +157,7 @@ export function getSymbolSummaries(): SymbolSummary[] {
         ORDER BY scanned_at DESC LIMIT 1)                                 AS lastUnderlying,
       MAX(scanned_at)                                                     AS lastScanned
     FROM scan_results s1
+    WHERE expiration >= strftime('%Y%m%d', 'now', 'localtime')
     GROUP BY symbol
     ORDER BY symbol
   `).all() as SymbolSummary[];
@@ -153,6 +175,7 @@ export function getPremiumPctDistribution(bucketSize = 0.5): DistributionBucket[
       ROUND((premium_pct / @bucketSize)) * @bucketSize AS bucket,
       COUNT(*)                                         AS count
     FROM scan_results
+    WHERE expiration >= strftime('%Y%m%d', 'now', 'localtime')
     GROUP BY bucket
     ORDER BY bucket
   `).all({ bucketSize }) as DistributionBucket[];
